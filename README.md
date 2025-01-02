@@ -9,3 +9,18 @@ This Master's thesis demonstrates the development and evaluation of a rule-based
 **Keywords:** natural language processing, electronic health records, Alport syndrome, medical named entity recognition
 
 # Content
+
+The code consists of **3** files:
+
+- **alport_primary_analysis** and this file contains:
+  - the primary analysis of alport patient dataset,
+  - the most common word and phrases analysis for dictionary development.
+ 
+- **alport_ehr_ner** and this file contains:
+  - the developed NER system,
+  - analysis of the extracted terms.
+ 
+- **alport_clustering** and this file contains:
+  - the text vectorisation using TF-IDF,
+  - the dimension reduction using Singular Value Decomposition,
+  - the clustering analysis using K-Means, DBSCAN and hierarchical clustering
