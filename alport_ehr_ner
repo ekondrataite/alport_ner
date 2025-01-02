@@ -1,0 +1,714 @@
+# Custom category to piece together different synonyms and abbrevations
+Span.set_extension("term", default="", force = True)
+
+# Custom rules for toke-based pattern matching
+target_rules = [
+    # Hearing abnormalities
+    TargetRule(
+        "Hearing abnormality",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": {"IN": ["deaf", "deafness", "sensorineural", "snhl"]}}
+        ], attributes={"term": "Hearing abnormality"}
+    ),
+    TargetRule(
+        "Hearing abnormality",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "hearing"},
+            {"LOWER": {"IN": ["abnormality", "abnormalities", "aid", "aids", "impairment", "impairments", "loss", "problem", "problems"]}}
+        ], attributes={"term": "Hearing abnormality"}
+    ),
+
+    # Eye abnormalities
+    TargetRule(
+        "Eye abnormalities",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": {"IN": ["abnormal", "bad", "poor"]}},
+            {"LOWER": {"IN": ["eye", "sight", "vision"]}}
+        ], attributes={"term": "Eye abnormalities"}
+    ),
+    TargetRule(
+        "Eye abnormalities",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": {"IN": ["vision", "eye", "sight"]}},
+            {"LOWER": {"IN": ["abnormality", "abnormalities", "anomaly", "anomalies", "problem", "problems"]}}
+        ], attributes={"term": "Eye abnormalities"}
+    ),
+    TargetRule(
+        "Eye abnormalities",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": {"IN": ["abnormality", "abnormalities", "anomaly", "anomalies"]}},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": {"IN": ["eye", "vision", "sight"]}}
+        ], attributes={"term": "Eye abnormalities"}
+    ),
+
+    # Abnormal corneal endothelium morphology
+    TargetRule(
+        "Abnormal corneal endothelium morphology",
+        "SYMPTOM",
+        attributes={"term": "Abnormal corneal endothelium morphology"}
+    ),
+    TargetRule(
+        "Abnormality of corneal endothelium",
+        "SYMPTOM",
+        attributes={"term": "Abnormal corneal endothelium morphology"}
+    ),
+    TargetRule(
+        "Corneal epithelial erosions",
+        "SYMPTOM",
+        attributes={"term": "Abnormal corneal endothelium morphology"}
+    ),
+    TargetRule(
+        "Corneal endothelium",
+        "SYMPTOM",
+        attributes={"term": "Abnormal corneal endothelium morphology"}
+    ),
+
+    # Anterior lenticonus
+    TargetRule(
+        "Anterior lenticonus",
+        "SYMPTOM",
+        attributes={"term": "Anterior lenticonus"}
+    ),
+
+    # Focal segmental glomerulosclerosis
+    TargetRule(
+        "Focal glomerulosclerosis",
+        "DISEASE",
+        attributes={"term": "Focal segmental glomerulosclerosis"}
+    ),
+    TargetRule(
+        "Focal and segmental glomerular sclerosis",
+        "DISEASE",
+        pattern=[
+            {"LOWER": "focal"},
+            {"LOWER": "and", "OP": "?"},
+            {"LOWER": "segmental"},
+            {"LOWER": {"IN": ["glomerular", "glomerulosclerosis"]}},
+            {"LOWER": "sclerosis", "OP": "?"},
+        ],
+        attributes={"term": "Focal segmental glomerulosclerosis"}
+    ),
+    TargetRule(
+        "FSGS",
+        "DISEASE",
+        attributes={"term": "Focal segmental glomerulosclerosis"}
+    ),
+
+    # Glomerular basement membrane lamellation
+    TargetRule(
+        "Glomerular basement membrane lamellation",
+        "SYMPTOM",
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+    TargetRule(
+        "GBM lamellation",
+        "SYMPTOM",
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+    TargetRule(
+        "Lamellated thickened glomerular basement membranes",
+        "SYMPTOM",
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+    TargetRule(
+        "Lamellated thickened gbm",
+        "SYMPTOM",
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+    TargetRule(
+        "Basket-woven thickened gbm",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "basket"},
+            {"LOWER": "-", "OP": "?"},
+            {"LOWER": "woven"},
+            {"LOWER": {"IN": ["thickened", "thick"]}},
+            {"LOWER": "gbm"}
+        ],
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+    TargetRule(
+        "Basket-woven thickened glomerular basement membranes",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "basket"},
+            {"LOWER": "-", "OP": "?"},
+            {"LOWER": "woven"},
+            {"LOWER": {"IN": ["thickened", "thick"]}},
+            {"LOWER": "glomerular"},
+            {"LOWER": "basement"},
+            {"LOWER": {"IN": ["membrane", "membranes"]}}
+        ],
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+    TargetRule(
+        "Lamellation of the gbm",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "lamellation"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "gbm"}
+        ],
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+    TargetRule(
+        "Lamellation of the glomerular basement membrane",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "lamellation"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "glomerular"},
+            {"LOWER": "basement"},
+            {"LOWER": {"IN": ["membrane", "membranes"]}}
+        ],
+        attributes={"term": "Glomerular basement membrane lamellation"}
+    ),
+
+    # Hematuria
+    TargetRule(
+        "Hematuria",
+        "SYMPTOM",
+        attributes={"term": "Hematuria"}
+    ),
+    TargetRule(
+        "Microhematuria",
+        "SYMPTOM",
+        attributes={"term": "Hematuria"}
+    ),
+    TargetRule(
+        "Blood in urine",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "blood"},
+            {"LOWER": "in"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "urine"}
+        ],
+        attributes={"term": "Hematuria"}
+    ),
+    TargetRule(
+        "High urine occult blood",
+        "SYMPTOM",
+        attributes={"term": "Hematuria"}
+    ),
+
+    # Hypertension
+    TargetRule(
+        "Hypertension",
+        "SYMPTOM",
+        attributes={"term": "Hypertension"}
+    ),
+    TargetRule(
+        "High blood pressure",
+        "SYMPTOM",
+        attributes={"term": "Hypertension"}
+    ),
+    TargetRule(
+        "High bp",
+        "SYMPTOM",
+        attributes={"term": "Hypertension"}
+    ),
+
+    # IgA deposition in the glomerulus
+    TargetRule(
+        "IgA deposition in the glomerulus",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "iga"},
+            {"LOWER": "deposition"},
+            {"LOWER": {"IN": ["in", "of"]}, "OP": "?"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "glomerulus"}
+        ],
+        attributes={"term": "IgA deposition in the glomerulus"}
+    ),
+    TargetRule(
+        "IgA nephropathy",
+        "SYMPTOM",
+        attributes={"term": "IgA deposition in the glomerulus"}
+    ),
+    TargetRule(
+        "Immunoglobulin A nephropathy",
+        "SYMPTOM",
+        attributes={"term": "IgA deposition in the glomerulus"}
+    ),
+
+    # Macular degeneration
+    TargetRule(
+        "Macular degeneration",
+        "SYMPTOM",
+        attributes={"term": "Macular degeneration"}
+    ),
+    TargetRule(
+        "Degeneration of the retinal pigment epithelium",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "degeneration"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "retinal"},
+            {"LOWER": "pigment"},
+            {"LOWER": "epithelium"}
+        ],
+        attributes={"term": "Macular degeneration"}
+    ),
+    TargetRule(
+        "Retinal photoreceptor cells of the macula lutea",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "retinal"},
+            {"LOWER": "photoreceptor"},
+            {"LOWER": "cells"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "macula"},
+            {"LOWER": "lutea"}
+        ],
+        attributes={"term": "Macular degeneration"}
+    ),
+
+    # Mesangial hypercellularity
+    TargetRule(
+        "Mesangial hypercellularity",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "mesangial"},
+            {"LOWER": {"IN": ["hypercellularity", "proliferation"]}}
+        ],
+        attributes={"term": "Mesangial hypercellularity"}
+    ),
+
+    # Nephritis
+    TargetRule(
+        "Nephritis",
+        "SYMPTOM",
+        attributes={"term": "Nephritis"}
+    ),
+    TargetRule(
+        "Bright's disease",
+        "SYMPTOM",
+        attributes={"term": "Nephritis"}
+    ),
+    TargetRule(
+        "Inflammation of the kidney",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "inflammation"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": {"IN": ["kidney", "kidneys"]}}
+        ],
+        attributes={"term": "Nephritis"}
+    ),
+    TargetRule(
+        "Kidney inflammation",
+        "SYMPTOM",
+        attributes={"term": "Nephritis"}
+    ),
+    TargetRule(
+        "Glomerulonephritis",
+        "SYMPTOM",
+        attributes={"term": "Nephritis"}
+    ),
+
+    # Nephrotic syndrome
+    TargetRule(
+        "Nephrotic syndrome",
+        "DISEASE",
+        attributes={"term": "Nephrotic syndrome"}
+    ),
+    TargetRule(
+        "Nephrosis",
+        "DISEASE",
+        attributes={"term": "Nephrotic syndrome"}
+    ),
+
+    # Posterior subcapsular cataract or any cataract
+    TargetRule(
+        "Cataract",
+        "DISEASE",
+        pattern=[
+            {"LOWER": {"IN": ["cataract", "cataracts"]}}
+        ], attributes={"term": "Cataract"}
+    ),
+
+    # Proteinuria
+    TargetRule(
+        "Proteinuria",
+        "SYMPTOM",
+        attributes={"term": "Proteinuria"}
+    ),
+    TargetRule(
+        "High protein in urine",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": {"IN": ["high", "higher", "increased"]}},
+            {"LOWER": "protein"},
+            {"LOWER": {"IN": ["level", "levels"]}, "OP": "?"},
+            {"LOWER": "in", "OP": "?"},
+            {"LOWER": "urine"},
+        ],
+        attributes={"term": "Proteinuria"}
+    ),
+    TargetRule(
+        "High urine protein levels",
+        "SYMPTOM",
+        attributes={"term": "Proteinuria"}
+    ),
+    TargetRule(
+        "Protein excretion",
+        "SYMPTOM",
+        attributes={"term": "Proteinuria"}
+    ),
+
+    # Corneal erosions
+    TargetRule(
+        "Corneal erosion",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "corneal"},
+            {"LOWER": {"IN": ["erosion", "erosions", "ulceration", "ulcerations"]}}
+        ],
+        attributes={"term": "Corneal erosions"}
+    ),
+    TargetRule(
+        "Breakdown of clear protective layer of eye",
+        "SYMPTOM",
+        attributes={"term": "Corneal erosions"}
+    ),
+
+    # Renal insufficiency
+    TargetRule(
+        "Renal insufficiency",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": {"IN": ["renal", "kidney"]}},
+            {"LOWER": {"IN": ["insufficiency", "insufficiencies", "failure", "failures"]}}
+        ],
+        attributes={"term": "Renal insufficiency"}
+    ),
+
+    # Retinal flecks
+    TargetRule(
+        "Retinal flecks",
+        "SYMPTOM",
+        attributes={"term": "Retinal flecks"}
+    ),
+    TargetRule(
+        "Retinal flecks",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": {"IN": ["yellow", "yellowish", "white", "whitish", "eye"]}},
+            {"LOWER": {"IN": ["lesions", "lesion"]}}
+        ],
+        attributes={"term": "Retinal flecks"}
+    ),
+    TargetRule(
+        "Lesions of the eye",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "lesions"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": {"IN": ["eye", "eyes"]}},
+        ],
+        attributes={"term": "Retinal flecks"}
+    ),
+    TargetRule(
+        "Dot-and-fleck retinopathy",
+        "SYMPTOM",
+        attributes={"term": "Retinal flecks"}
+    ),
+    TargetRule(
+        "Dot and fleck retinopathy",
+        "SYMPTOM",
+        attributes={"term": "Retinal flecks"}
+    ),
+
+    # Stage 5 chronic kidney disease
+    TargetRule(
+        "Stage 5 chronic kidney disease",
+        "DISEASE",
+        pattern=[
+            {"LOWER": "stage"},
+            {"LOWER": "5"},
+            {"LOWER": "chronic", "OP": "?"},
+            {"LOWER": {"IN": ["renal", "kidney"]}},
+            {"LOWER": {"IN": ["disease", "failure"]}}
+        ],
+        attributes={"term": "Stage 5 chronic kidney disease"}
+    ),
+
+    # End stage renal disease
+    TargetRule(
+        "End stage renal disease",
+        "DISEASE",
+        pattern=[
+            {"LOWER": "end"},
+            {"LOWER": "-", "OP": "?"},
+            {"LOWER": "stage"},
+            {"LOWER": {"IN": ["renal", "kidney"]}},
+            {"LOWER": "disease"}
+        ],
+        attributes={"term": "End stage renal disease"}
+    ),
+    TargetRule(
+        "ESRD",
+        "DISEASE",
+        attributes={"term": "End stage renal disease"}
+    ),
+
+    # Thickened glomerular basement membrane
+    TargetRule(
+        "Thickened glomerular basement membrane",
+        "SYMPTOM",
+        attributes={"term": "Thickened glomerular basement membrane"}
+    ),
+    TargetRule(
+        "Thickened GBM",
+        "SYMPTOM",
+        attributes={"term": "Thickened glomerular basement membrane"}
+    ),
+
+    # Thickening of glomerular capillary wall
+    TargetRule(
+        "Thickening of glomerular capillary wall",
+        "SYMPTOM",
+        attributes={"term": "Thickening of glomerular capillary wall"}
+    ),
+
+    # Thin glomerular basement membrane
+    TargetRule(
+        "Thin glomerular basement membrane",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "thin"},
+            {"LOWER": "glomerular", "OP": "?"},
+            {"LOWER": "basement"},
+            {"LOWER": "membrane"},
+        ],
+        attributes={"term": "Thin glomerular basement membrane"}
+    ),
+    TargetRule(
+        "Thin glomerular basement membrane",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "thin"},
+            {"LOWER": "gbm"},
+            {"LOWER": "disease", "OP": "?"}
+        ],
+        attributes={"term": "Thin glomerular basement membrane"}
+    ),
+    TargetRule(
+        "Thin glomerular basement membrane",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "decreased"},
+            {"LOWER": "thickness"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "glomerular", "OP": "?"},
+            {"LOWER": "basement"},
+            {"LOWER": "membrane"},
+        ],
+        attributes={"term": "Thin glomerular basement membrane"}
+    ),
+    TargetRule(
+        "Thin glomerular basement membrane",
+        "SYMPTOM",
+        pattern=[
+            {"LOWER": "decreased"},
+            {"LOWER": "thickness"},
+            {"LOWER": "of"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "gbm"}
+        ],
+        attributes={"term": "Thin glomerular basement membrane"}
+    ),
+
+    # Renal biopsy
+    TargetRule(
+        "Renal biopsy",
+        "PROCEDURE",
+        pattern=[
+            {"LOWER": {"IN": ["renal", "kidney"]}},
+            {"LOWER": "biopsy"},
+        ],
+        attributes={"term": "Renal biopsy"}
+    ),
+
+    # Urinalysis
+    TargetRule(
+        "Urinalysis",
+        "PROCEDURE",
+        pattern=[
+            {"LOWER": {"IN": ["dipstick", "urinalysis"]}}
+        ],
+        attributes={"term": "Urinalysis"}
+    ),
+
+    TargetRule(
+        "Urinalysis",
+        "PROCEDURE",
+        pattern=[
+            {"LOWER": {"IN": ["test", "examination", "urinalysis"]}},
+            {"LOWER": "of", "OP": "?"},
+            {"LOWER": "the", "OP": "?"},
+            {"LOWER": "urine"}
+        ],
+        attributes={"term": "Urinalysis"}
+    ),
+
+    # Edema
+    TargetRule(
+        "Edema",
+        "SYMPTOM",
+        attributes={"term": "Edema"}
+    ),
+
+    # Leiomyomatosis
+    TargetRule(
+        "Leiomyomatosis",
+        "SYMPTOM",
+        attributes={"term": "Leiomyomatosis"}
+    ),
+
+    # Acute post-streptococcal glomerulonephritis
+    TargetRule(
+        "Acute post-streptococcal glomerulonephritis",
+        "DISEASE",
+        pattern=[
+            {"LOWER": "acute"},
+            {"LOWER": "post"},
+            {"LOWER": "-", "OP": "?"},
+            {"LOWER": "streptococcal"},
+            {"LOWER": "glomerulonephritis"}
+        ],
+        attributes={"term": "Acute post-streptococcal glomerulonephritis"}
+    ),
+    TargetRule(
+        "Acute post-streptococcal glomerulonephritis",
+        "DISEASE",
+        pattern=[
+            {"LOWER": {"IN": ["PSGN", "APSGN"]}}
+        ],
+        attributes={"term": "Acute post-streptococcal glomerulonephritis"}
+    ),
+
+    # Medullary cystic disease
+    TargetRule(
+        "Medullary cystic kidney disease",
+        "DISEASE",
+        pattern=[
+            {"LOWER": "medullary"},
+            {"LOWER": "cystic"},
+            {"LOWER": {"IN": ["kidney", "renal"]}, "OP": "?"},
+            {"LOWER": "disease"}
+        ],
+        attributes={"term": "Medullary cystic kidney disease"}
+    ),
+
+    # Multicystic renal dysplasia
+    TargetRule(
+        "Multicystic renal dysplasia",
+        "DISEASE",
+        pattern=[
+            {"LOWER": "multicystic"},
+            {"LOWER": {"IN": ["kidney", "renal"]}},
+            {"LOWER": "dysplasia"}
+        ],
+        attributes={"term": "Multicystic renal dysplasia"}
+    ),
+
+    # Polycystic kidney disease
+    TargetRule(
+        "Polycystic kidney disease",
+        "DISEASE",
+        pattern=[
+            {"LOWER": "polycystic"},
+            {"LOWER": {"IN": ["kidney", "renal"]}},
+            {"LOWER": {"IN": ["dysplasia", "disease"]}}
+        ],
+        attributes={"term": "Polycystic kidney disease"}
+    ),
+    TargetRule(
+        "Polycystic kidneys",
+        "DISEASE",
+        attributes={"term": "Polycystic kidney disease"}
+    ),
+
+    # Dialysis
+    TargetRule(
+        "Dialysis",
+        "PROCEDURE",
+        pattern=[
+            {"LOWER": {"IN": ["dialysis", "hemodialysis"]}}
+        ],
+        attributes={"term": "Dialysis"}
+    ),
+
+    # Transplant
+    TargetRule(
+        "Transplant",
+        "PROCEDURE",
+        pattern=[
+            {"LOWER": {"IN": ["renal", "kidney"]}},
+            {"LOWER": {"IN": ["transplant", "transplantation"]}},
+        ],
+        attributes={"term": "Transplant"}
+    )
+]
+
+# Perform NER using the custom rules
+
+nlp = medspacy.load(enable=["ner", "context"])
+
+target_matcher = nlp.get_pipe("medspacy_target_matcher")
+
+target_matcher.add(target_rules)
+
+def extract_entities(text):
+    doc = nlp(text)
+    entities = set()  # Using a set to store unique (entity_text, entity_label) tuples
+    for ent in doc.ents:
+        # Filter entities based on context
+        if not ent._.is_negated and not ent._.is_uncertain and not ent._.is_family:
+            entities.add((ent._.term, ent.label_))  # Store as (term, label) tuple
+    return list(entities)
+
+alport_df["entities"] = alport_df["text"].apply(extract_entities)
+
+alport_ner_df = alport_df.explode("entities").dropna(subset=["entities"])
+
+alport_ner_df[["entity_term", "entity_label"]] = pd.DataFrame(alport_ner_df["entities"].tolist(), index=alport_ner_df.index)
+alport_ner_df = alport_ner_df.drop(columns=["entities", "text"])
+alport_ner_df['entity_term_edited'] = alport_ner_df['entity_term'].str.replace(' ', '_')
+
+# Count extracted term statistics
+
+term_counts = alport_ner_df['entity_term'].value_counts()
+notes_per_term = alport_ner_df.groupby('entity_term')['note_id'].nunique()
+patients_per_term = alport_ner_df.groupby('entity_term')['subject_id'].nunique()
+
+term_stats_df = pd.DataFrame({
+    'unique_subject_ids': patients_per_term,
+    'term_frequency': term_counts,
+    'unique_note_ids': notes_per_term,
+})
+
+term_stats_df_sorted = term_stats_df.sort_values(by='unique_subject_ids', ascending=False)
+
+terms_per_categories = alport_ner_df.groupby(['entity_term', 'category'])['note_id'].nunique()
+
+term_stats_df = pd.DataFrame({
+    'terms_per_categories': terms_per_categories,
+})
