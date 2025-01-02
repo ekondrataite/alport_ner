@@ -1,0 +1,636 @@
+##################### Libraries ###########################################################################################################
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+from mpl_toolkits.mplot3d import Axes3D
+import plotly.express as px
+from yellowbrick.cluster import KElbowVisualizer
+from scipy.spatial.distance import cdist
+from sklearn.preprocessing import normalize
+
+from scipy.cluster.hierarchy import fcluster
+import scipy.cluster.hierarchy as sch
+from sklearn.cluster import DBSCAN
+from sklearn.decomposition import TruncatedSVD
+from sklearn.preprocessing import LabelEncoder
+
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics.cluster import rand_score, fowlkes_mallows_score, completeness_score
+
+import matplotlib.patches as mpatches
+
+##################### Data Preparation ###########################################################################################################
+
+# Creating dataframes for separate and combined entity analysis
+
+all_entities = alport_df.groupby('subject_id')['entity_term_edited'].apply(lambda x: ' '.join(x)).reset_index()
+
+separate_entities = alport_df.groupby(['subject_id', 'entity_label'])['entity_term_edited'].apply(lambda x: ' '.join(x)).reset_index()
+
+symptom_entities = separate_entities[separate_entities['entity_label'] == 'SYMPTOM']
+symptom_entities = symptom_entities[['subject_id', 'entity_term_edited']]
+
+disease_entities = separate_entities[separate_entities['entity_label'] == 'DISEASE']
+disease_entities = disease_entities[['subject_id', 'entity_term_edited']]
+
+procedure_entities = separate_entities[separate_entities['entity_label'] == 'PROCEDURE']
+procedure_entities = procedure_entities[['subject_id', 'entity_term_edited']]
+
+# TF-IDF vectorization
+
+# For all entities combined
+
+vectorizer_all_ent = TfidfVectorizer(norm='l2')
+X_all_tfidf = vectorizer_all_ent.fit_transform(all_entities['entity_term_edited'])
+all_features = vectorizer_all_ent.get_feature_names_out()
+
+# For symptoms only
+
+vectorizer_symptoms = TfidfVectorizer(norm='l2')
+X_symptoms_tfidf = vectorizer_symptoms.fit_transform(symptom_entities['entity_term_edited'])
+symptoms_features = vectorizer_symptoms.get_feature_names_out()
+
+# For diseases only
+
+vectorizer_diseases = TfidfVectorizer(norm='l2')
+X_diseases_tfidf = vectorizer_diseases.fit_transform(disease_entities['entity_term_edited'])
+diseases_features = vectorizer_diseases.get_feature_names_out()
+
+# For procedures only
+
+vectorizer_procedures = TfidfVectorizer(norm='l2')
+X_procedures_tfidf = vectorizer_procedures.fit_transform(procedure_entities['entity_term_edited'])
+procedures_features = vectorizer_procedures.get_feature_names_out()
+
+# For comparison between AS and CKD-1 clustering
+
+# Crating dataframe for AS and CKD-1
+
+all_ckd_entities = kidney_df.groupby('subject_id')['entity_term_edited'].apply(lambda x: ' '.join(x)).reset_index()
+all_ckd_entities = all_ckd_entities.sample(n=30, random_state=123)
+
+all_entities['label'] = 0
+all_ckd_entities['label'] = 1
+
+as_ckd_entities = pd.concat([all_entities, all_ckd_entities], ignore_index=True)
+
+y_true = as_ckd_entities['label'].to_numpy()
+
+vectorizer_comparison = TfidfVectorizer(norm='l2')
+X_as_ckd_tfidf = vectorizer_comparison.fit_transform(as_ckd_entities['entity_term_edited'])
+features_as_ckd = vectorizer_comparison.get_feature_names_out()
+
+##################### Clustering helper functions ###########################################################################################################
+
+# ALL functions for analysis
+
+# Function to compute Dunn index
+def dunn_index(X, labels):
+    # Compute the pairwise distances between points in the same cluster and in different clusters
+    unique_labels = np.unique(labels)
+    intra_cluster_distances = []
+    inter_cluster_distances = []
+
+    for label in unique_labels:
+        # Points belonging to the same cluster
+        cluster_points = X[labels == label]
+        # Compute intra-cluster distance (average distance between points within the same cluster)
+        intra_dist = np.mean(cdist(cluster_points, cluster_points, 'euclidean'))
+        intra_cluster_distances.append(intra_dist)
+
+    # Compute inter-cluster distance (minimum distance between points in different clusters)
+    for i, label1 in enumerate(unique_labels):
+        for label2 in unique_labels[i + 1:]:
+            cluster1 = X[labels == label1]
+            cluster2 = X[labels == label2]
+            # Compute inter-cluster distance (minimum distance between clusters)
+            inter_dist = np.min(cdist(cluster1, cluster2, 'euclidean'))
+            inter_cluster_distances.append(inter_dist)
+
+    # Dunn index: minimum inter-cluster distance / maximum intra-cluster distance
+    return np.min(inter_cluster_distances) / np.max(intra_cluster_distances)
+
+def get_top_terms_per_cluster(data, labels, feature_names, n_top_terms=5):
+
+    if hasattr(data, "toarray"):
+        data = data.toarray()
+
+    df = pd.DataFrame(data, columns=feature_names)
+    df['cluster'] = labels
+
+    # Group by cluster and compute mean TF-IDF score for each term
+    cluster_means = df.groupby('cluster').mean()
+
+    # Get top terms for each cluster
+    for cluster_idx, row in cluster_means.iterrows():
+        # Sort terms by their mean score in the cluster
+        top_indices = row.values.argsort()[-n_top_terms:][::-1]
+        top_terms = [(feature_names[i], row.values[i]) for i in top_indices]
+
+        print(f"Cluster {cluster_idx}:")
+        for term, score in top_terms:
+            print(f"   - {term} (Score: {score:.4f})")
+
+
+def visualize_svd_projection(X_svd, labels=None):
+  # 2D projection
+  plt.figure(figsize=(8, 6))
+  scatter = plt.scatter(X_svd[:, 0], X_svd[:, 1], c=labels, cmap='viridis')
+  plt.xlabel('Component 1')
+  plt.ylabel('Component 2')
+  plt.title('2D Clustering Visualization')
+  plt.show()
+
+  # 3D projection
+  if X_svd.shape[1] >= 3:
+    svd_df = pd.DataFrame(X_svd[:, :3], columns=['SVD1', 'SVD2', 'SVD3'])
+    fig = px.scatter_3d(svd_df, x='SVD1', y='SVD2', z='SVD3', color=labels,
+                        title=f"3D SVD Projection)")
+    fig.show()
+
+def visualize_clustering(X_svd, labels=None):
+  # 2D projection
+  plt.figure(figsize=(8, 6))
+  scatter = plt.scatter(X_svd[:, 0], X_svd[:, 1], c=labels, s=80, cmap='viridis', alpha=0.8)
+  plt.xlabel('Component 1', size=14)
+  plt.ylabel('Component 2', size=14)
+  plt.xticks(fontsize=14)
+  plt.yticks(fontsize=14)
+  unique_labels = np.unique(labels)
+  legend_patches = [
+      mpatches.Patch(color=scatter.cmap(scatter.norm(label)), label=f"Cluster {label}")
+      for label in unique_labels
+  ]
+  plt.legend(handles=legend_patches, title="Clusters", bbox_to_anchor=(1.05, 1), loc='upper left')
+  plt.show()
+
+
+def silhoute_analysis(data, max_k=10):
+  # Define the range of K values to explore
+  k_values = range(2, max_k)
+  silhouette_scores = []
+
+  best_k = None
+  best_silhouette_score = -1
+
+  # Iterate through different K values
+  for k in k_values:
+      km = KMeans(n_clusters=k, max_iter=1000, init='random', random_state=123)
+      km.fit(data)
+
+      # Calculate the average silhouette score
+      silhouette_avg = silhouette_score(data, km.labels_)
+      silhouette_scores.append(silhouette_avg)
+
+      # Update the best K value if a higher silhouette score is found
+      if silhouette_avg > best_silhouette_score:
+          best_k = k
+          best_silhouette_score = silhouette_avg
+
+  # Output the best K value and corresponding Silhouette Score
+  print("Best K value:", best_k)
+  print("Best Silhouette Score:", best_silhouette_score)
+
+  # Create a plot to visualize Silhouette Scores
+  plt.figure(figsize=(8, 5))
+  plt.plot(k_values, silhouette_scores, marker='o', alpha=0.8)
+  plt.xlabel("\nNumber of Clusters (K)", size=12)
+  plt.ylabel("Silhouette Score\n", size=12)
+  plt.title("Silhouette Score Analysis\n", size=14)
+  plt.grid(True)
+  plt.show()
+
+def elbow_method(data, max_k=15):
+  Elbow = KElbowVisualizer(KMeans(max_iter=1000, init='random', random_state=123), k=max_k)
+  Elbow.fit(data)
+  Elbow.show()
+
+
+def k_means_clustering(X_svd, X_original, feature_names, n_clusters):
+
+  # Initialize K-means
+  k_means = KMeans(
+      n_clusters=n_clusters,
+      max_iter=1000,
+      random_state=123,
+      init='random'
+    )
+
+  k_means.fit_predict(X_svd)
+  y_hat = k_means.labels_
+
+  print(f"K = {n_clusters}\n")
+
+  #  Evaluation metrics
+  sse = k_means.inertia_
+  db_score = davies_bouldin_score(X_svd, y_hat)
+  dunn = dunn_index(X_svd, y_hat)
+  silhouette = silhouette_score(X_svd, y_hat)
+
+  metrics = pd.DataFrame({
+    "Metric": ["SSE", "Davies-Bouldin Score", "Dunn Index", "Silhouette Score"],
+    "Value": [sse, db_score, dunn, silhouette]
+  })
+
+  print(f"\nCluster sizes:\n{np.bincount(k_means.labels_)}\n")
+  print(f"Evaluation metrics:\n{metrics}\n")
+
+  print("\nCluster Characteristics (Top 5 Terms per Cluster):\n")
+  get_top_terms_per_cluster(X_original, y_hat, feature_names)
+
+  visualize_clustering(X_svd, y_hat)
+
+
+def hc_clustering(X_svd, X_original, feature_names, n_clusters):
+
+  hc_df = pd.DataFrame(X_svd)
+  linked = sch.linkage(hc_df, method='ward')
+
+  y_hat = fcluster(linked, t=n_clusters, criterion='maxclust')
+
+  #  Evaluation metrics
+  db_score = davies_bouldin_score(X_svd, y_hat)
+  dunn = dunn_index(X_svd, y_hat)
+  silhouette = silhouette_score(X_svd, y_hat)
+
+  metrics = pd.DataFrame({
+    "Metric": ["Davies-Bouldin Score", "Dunn Index", "Silhouette Score"],
+    "Value": [db_score, dunn, silhouette]
+  })
+
+  print(f"Cluster sizes:\n{pd.Series(y_hat).value_counts().sort_index()}\n")
+  print(f"Evaluation metrics:\n{metrics}\n")
+
+  print("\nCluster Characteristics (Top 5 Terms per Cluster):\n")
+  get_top_terms_per_cluster(X_original, y_hat, feature_names)
+
+  visualize_clustering(X_svd, y_hat)
+
+
+def dbscan_clustering(X_svd, X_original, feature_names, eps, min_samples):
+
+  dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+  y_hat = dbscan.fit_predict(X_svd)
+
+  # Evaluation metrics
+  db_score = davies_bouldin_score(X_svd, y_hat)
+  dunn = dunn_index(X_svd, y_hat)
+  silhouette = silhouette_score(X_svd, y_hat)
+
+  metrics = pd.DataFrame({
+    "Metric": ["Davies-Bouldin Score", "Dunn Index", "Silhouette Score"],
+    "Value": [db_score, dunn, silhouette]
+  })
+
+  print(f"Cluster sizes:\n{pd.Series(y_hat).value_counts().sort_index()}\n")
+  print(f"Evaluation metrics:\n{metrics}\n")
+
+  print("\nCluster Characteristics (Top 5 Terms per Cluster):\n")
+  get_top_terms_per_cluster(X_original, y_hat, feature_names)
+
+  visualize_clustering(X_svd, y_hat)
+
+##################### Performing Clustering Analysis ###########################################################################################################
+
+# Visual evaluation of clusters
+
+# All entities
+svd_all = TruncatedSVD(n_components=3, random_state=123)
+X_all_svd = svd_all.fit_transform(X_all_tfidf)
+
+visualize_svd_projection(X_all_svd)
+
+# Only symptoms
+svd_symptoms = TruncatedSVD(n_components=3, random_state=123)
+X_symptoms_svd = svd_symptoms.fit_transform(X_symptoms_tfidf)
+
+visualize_svd_projection(X_symptoms_svd)
+
+# Only diseases
+svd_diseases = TruncatedSVD(n_components=3, random_state=123)
+X_diseases_svd = svd_diseases.fit_transform(X_diseases_tfidf)
+
+visualize_svd_projection(X_diseases_svd)
+
+##################### All Features ###################################################
+
+# Analysis using 2 components
+svd_all_2 = TruncatedSVD(n_components=2, random_state=123)
+X_all_svd_2 = svd_all_2.fit_transform(X_all_tfidf)
+
+##################### K-Means
+silhoute_analysis(X_all_svd_2)
+
+elbow_method(X_all_svd_2)
+
+k_means_clustering(X_svd=X_all_svd_2, X_original=X_all_tfidf, feature_names=all_features, n_clusters=2)
+
+##################### Hierarchical clustering
+
+hc_2_df = pd.DataFrame(X_all_svd_2, index=all_entities['subject_id'])
+
+linked = sch.linkage(hc_2_df, method='ward')
+
+# Plot the dendrogram
+plt.figure(figsize=(8, 5))
+sch.dendrogram(linked, labels=hc_2_df.index.tolist(), orientation='top', color_threshold=1)
+plt.title('Hierarchical Clustering Dendrogram\n', size=14)
+plt.xlabel('\nPatients', size=12)
+plt.ylabel('Euclidean Distance\n', size=12)
+plt.xticks([])
+plt.grid(False)
+plt.show()
+
+hc_clustering(X_svd=X_all_svd_2, X_original=X_all_tfidf, feature_names=all_features, n_clusters=2)
+
+##################### DBSCAN
+
+# Define parameter ranges
+eps_values = np.arange(0.1, 2.0, 0.1)
+min_samples_values = range(2, 10)
+
+results = []
+
+for eps in eps_values:
+    for min_samples in min_samples_values:
+        # Apply DBSCAN
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = dbscan.fit_predict(X_all_svd_2)
+
+        # Skip if all points are noise or single cluster
+        if len(np.unique(labels)) < 2:
+            continue
+
+        # Calculate metrics
+        db_score = davies_bouldin_score(X_all_svd_2, labels)
+        silhouette = silhouette_score(X_all_svd_2, labels)
+        dunn = dunn_index(X_all_svd_2, labels)
+
+        results.append({
+            "eps": eps,
+            "min_samples": min_samples,
+            "Davies-Bouldin Score": db_score,
+            "Dunn Index": dunn,
+            "Silhouette Score": silhouette
+        })
+
+metrics_df = pd.DataFrame(results)
+metrics_df = metrics_df.sort_values(by="Silhouette Score", ascending=False)
+
+metrics_df
+
+eps = 0.3
+min_samples = 7
+
+dbscan_clustering(X_svd=X_all_svd_2, X_original=X_all_tfidf, feature_names=all_features, eps=eps, min_samples=min_samples)
+
+##################### Only symptom features ###################################################
+
+svd_symptoms_2 = TruncatedSVD(n_components=2, random_state=123)
+X_symptoms_svd_2 = svd_symptoms_2.fit_transform(X_symptoms_tfidf)
+
+##################### K-Means
+silhoute_analysis(X_symptoms_svd_2)
+elbow_method(X_symptoms_svd_2)
+
+k_means_clustering(X_svd=X_symptoms_svd_2, X_original=X_symptoms_tfidf, feature_names=symptoms_features, n_clusters=4)
+
+##################### Hierarchical clustering
+
+# 2 components
+
+hc_2_symptoms_df = pd.DataFrame(X_symptoms_svd_2, index=symptom_entities['subject_id'])
+
+linked = sch.linkage(hc_2_symptoms_df, method='ward')
+
+# Plot the dendrogram
+plt.figure(figsize=(10, 7))
+sch.dendrogram(linked, labels=hc_2_symptoms_df.index.tolist(), orientation='top', color_threshold=1)
+plt.title('Hierarchical Clustering Dendrogram')
+plt.xlabel('Patients')
+plt.ylabel('Euclidean Distance')
+plt.show()
+
+hc_clustering(X_svd=X_symptoms_svd_2, X_original=X_symptoms_tfidf, feature_names=symptoms_features, n_clusters=2)
+
+##################### DBSCAN
+
+# Define parameter ranges
+eps_values = np.arange(0.1, 2.0, 0.1)
+min_samples_values = range(2, 10)
+
+results = []
+
+for eps in eps_values:
+    for min_samples in min_samples_values:
+        # Apply DBSCAN
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = dbscan.fit_predict(X_symptoms_svd_2)
+
+        unique_labels = np.unique(labels[labels != -1])  # Exclude noise (-1)
+        if len(unique_labels) < 2:
+            continue
+
+        cluster_data = X_symptoms_svd_2[labels != -1]
+        cluster_labels = labels[labels != -1]
+
+        # Calculate metrics
+        db_score = davies_bouldin_score(cluster_data, cluster_labels)
+        silhouette = silhouette_score(cluster_data, cluster_labels)
+        dunn = dunn_index(cluster_data, cluster_labels)
+
+        results.append({
+            "eps": eps,
+            "min_samples": min_samples,
+            "Davies-Bouldin Score": db_score,
+            "Dunn Index": dunn,
+            "Silhouette Score": silhouette
+        })
+
+metrics_df = pd.DataFrame(results)
+metrics_df = metrics_df.sort_values(by="Silhouette Score", ascending=False)
+
+metrics_df.head()
+
+eps = 0.2
+min_samples = 8
+
+dbscan_clustering(X_svd=X_symptoms_svd_2, X_original=X_symptoms_tfidf, feature_names=symptoms_features, eps=eps, min_samples=min_samples)
+
+##################### Comparison between AS and CKD ###################################################
+
+svd_comparison_2 = TruncatedSVD(n_components=2, random_state=123)
+X_comparison_svd_2 = svd_comparison_2.fit_transform(X_as_ckd_tfidf)
+
+visualize_clustering(X_comparison_svd_2, y_true)
+
+##################### K-Means
+
+k_means = KMeans(
+    n_clusters=2,
+    max_iter=1000,
+    random_state=123,
+    init='random'
+  )
+
+k_means.fit_predict(X_comparison_svd_2)
+y_hat = k_means.labels_
+
+cluster_labels, cluster_sizes = np.unique(y_hat, return_counts=True)
+cluster_sizes_dict = dict(zip(cluster_labels, cluster_sizes))
+
+print(f"\nCluster sizes:\n{cluster_sizes_dict}\n")
+
+print(rand_score(y_true, y_hat))
+print(fowlkes_mallows_score(y_true, y_hat))
+
+get_top_terms_per_cluster(X_as_ckd_tfidf, y_hat, features_as_ckd)
+
+conf_matrix = confusion_matrix(y_true, y_hat)
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues")
+plt.xlabel("Predicted Cluster")
+plt.ylabel("True Class")
+plt.title("Confusion Matrix")
+plt.show()
+
+custom_cmap = ListedColormap(['#DC143C', '#1f77b4'])
+
+label_names = {0: 'AS', 1: 'CKD-1'}
+
+# Plot the true labels
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.scatter(X_comparison_svd_2[:, 0], X_comparison_svd_2[:, 1], c=y_true, cmap=custom_cmap, marker='o', alpha=0.6)
+plt.title("True Labels")
+plt.xlabel("SVD Component 1")
+plt.ylabel("SVD Component 2")
+
+# Plot the cluster assignments
+plt.subplot(1, 2, 2)
+plt.scatter(X_comparison_svd_2[:, 0], X_comparison_svd_2[:, 1], c=y_hat, cmap=custom_cmap, marker='o', alpha=0.6)
+plt.title("K-Means Clusters")
+plt.xlabel("SVD Component 1")
+plt.ylabel("SVD Component 2")
+
+plt.tight_layout()
+plt.show()
+
+##################### Hierarchical Clustering
+
+hc_comparison_df = pd.DataFrame(X_comparison_svd_2)
+linked = sch.linkage(hc_comparison_df, method='ward')
+y_hat = fcluster(linked, t=2, criterion='maxclust')
+
+y_hat[y_hat == 1] = 0
+y_hat[y_hat == 2] = 1
+
+cluster_labels, cluster_sizes = np.unique(y_hat, return_counts=True)
+cluster_sizes_dict = dict(zip(cluster_labels, cluster_sizes))
+
+print(f"\nCluster sizes:\n{cluster_sizes_dict}\n")
+
+print(rand_score(y_true, y_hat))
+print(fowlkes_mallows_score(y_true, y_hat))
+
+# Plot the true labels
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.scatter(X_comparison_svd_2[:, 0], X_comparison_svd_2[:, 1], c=y_true, cmap='viridis', marker='o', alpha=0.6)
+plt.title("True Labels")
+plt.xlabel("SVD Component 1")
+plt.ylabel("SVD Component 2")
+
+# Plot the cluster assignments
+plt.subplot(1, 2, 2)
+plt.scatter(X_comparison_svd_2[:, 0], X_comparison_svd_2[:, 1], c=y_hat, cmap='viridis', marker='o', alpha=0.6)
+plt.title("Hierarchical Method Clusters")
+plt.xlabel("SVD Component 1")
+plt.ylabel("SVD Component 2")
+
+plt.tight_layout()
+plt.show()
+
+conf_matrix = confusion_matrix(y_true, y_hat)
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues")
+plt.xlabel("Predicted Cluster")
+plt.ylabel("True Class")
+plt.title("Confusion Matrix")
+plt.show()
+
+##################### DBSCAN
+
+# Define parameter ranges
+eps_values = np.arange(0.1, 2.0, 0.1)
+min_samples_values = range(2, 10)
+
+results = []
+
+for eps in eps_values:
+    for min_samples in min_samples_values:
+        # Apply DBSCAN
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = dbscan.fit_predict(X_comparison_svd_2)
+
+        # Skip if all points are noise or single cluster
+        if len(np.unique(labels)) < 2:
+            continue
+
+        # Calculate metrics
+        db_score = davies_bouldin_score(X_comparison_svd_2, labels)
+        silhouette = silhouette_score(X_comparison_svd_2, labels)
+        dunn = dunn_index(X_comparison_svd_2, labels)
+
+        results.append({
+            "eps": eps,
+            "min_samples": min_samples,
+            "Davies-Bouldin Score": db_score,
+            "Dunn Index": dunn,
+            "Silhouette Score": silhouette
+        })
+
+metrics_df = pd.DataFrame(results)
+metrics_df = metrics_df.sort_values(by="Silhouette Score", ascending=False)
+
+metrics_df.head()
+
+dbscan = DBSCAN(eps=0.2, min_samples=3)
+y_hat = dbscan.fit_predict(X_comparison_svd_2)
+
+cluster_labels, cluster_sizes = np.unique(y_hat, return_counts=True)
+cluster_sizes_dict = dict(zip(cluster_labels, cluster_sizes))
+
+print(f"\nCluster sizes:\n{cluster_sizes_dict}\n")
+
+print(rand_score(y_true, y_hat))
+print(fowlkes_mallows_score(y_true, y_hat))
+
+# Plot the true labels
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.scatter(X_comparison_svd_2[:, 0], X_comparison_svd_2[:, 1], c=y_true, cmap='viridis', marker='o', alpha=0.6)
+plt.title("True Labels")
+plt.xlabel("SVD Component 1")
+plt.ylabel("SVD Component 2")
+
+# Plot the cluster assignments
+plt.subplot(1, 2, 2)
+plt.scatter(X_comparison_svd_2[:, 0], X_comparison_svd_2[:, 1], c=y_hat, cmap='viridis', marker='o', alpha=0.6)
+plt.title("DBSCAN Clusters")
+plt.xlabel("SVD Component 1")
+plt.ylabel("SVD Component 2")
+
+plt.tight_layout()
+plt.show()
+
+conf_matrix = confusion_matrix(y_true, y_hat)
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues")
+plt.xlabel("Predicted Cluster")
+plt.ylabel("True Class")
+plt.title("Confusion Matrix")
+plt.show()
