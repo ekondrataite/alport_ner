@@ -10,7 +10,7 @@ This Master's thesis demonstrates the development and evaluation of a rule-based
 
 # Content
 
-The code consists of **3** files:
+The python code consists of **3** files:
 
 - **alport_primary_analysis** and this file contains:
   - the primary analysis of alport patient dataset,
