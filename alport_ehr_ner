@@ -1,3 +1,23 @@
+##################### Libraries ###########################################################################################################
+
+import pandas as pd
+import numpy as np
+import re
+import string
+import matplotlib.pyplot as plt
+
+import spacy
+from spacy.tokens import Span
+
+import medspacy
+from medspacy.ner import TargetRule
+from medspacy.visualization import visualize_dep, visualize_ent
+from medspacy.io import DocConsumer
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+##################### Custom Rules ###########################################################################################################
+
 # Custom category to piece together different synonyms and abbrevations
 Span.set_extension("term", default="", force = True)
 
@@ -668,7 +688,7 @@ target_rules = [
     )
 ]
 
-# Perform NER using the custom rules
+##################### Named entity recognition ###########################################################################################################
 
 nlp = medspacy.load(enable=["ner", "context"])
 
@@ -692,6 +712,8 @@ alport_ner_df = alport_df.explode("entities").dropna(subset=["entities"])
 alport_ner_df[["entity_term", "entity_label"]] = pd.DataFrame(alport_ner_df["entities"].tolist(), index=alport_ner_df.index)
 alport_ner_df = alport_ner_df.drop(columns=["entities", "text"])
 alport_ner_df['entity_term_edited'] = alport_ner_df['entity_term'].str.replace(' ', '_')
+
+##################### Overview of NER ###########################################################################################################
 
 # Count extracted term statistics
 
